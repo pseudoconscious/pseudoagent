@@ -1,0 +1,125 @@
+# ---------------------------------------------------------
+# Counter - state and configuration
+#
+# pseudoagent (the library) is a stateless engine: it knows
+# mechanisms, never tool names. Everything it needs to run is
+# loaded from this file at startup:
+#
+#   llm        - LLM setup (generate + choose roles)
+#   data       - agent state (any shape)
+#   tools      - AHP tool registry: description (for choose_ahp),
+#                handler (dotted path to the Python function),
+#                llm_tool (optional parameter schema, extracted
+#                from an LLM tool call before the handler runs)
+#   llm_tools  - native LLM tool schemas for generate_raw
+#   criterias  - AHP criteria
+#   settings   - engine settings (loop delay, safety cap)
+#
+# Adding a tool = write a handler in counter_tools.py +
+# declare it here.
+# ---------------------------------------------------------
+
+llm:
+  generate:
+    provider: deepinfra
+    env_path: 'd:\___env_var\deepinfra-qwen3.8-27B-Flash.env'
+  choose:
+    provider: openrouter
+    env_path: 'd:\___env_var\openrouter-jev1.13.env'
+
+# ---------------------------------------------------------
+# Agent state
+# ---------------------------------------------------------
+
+data:
+  mandate: Count from 10 to 12 one integer at a time.
+  counter: 0
+
+# ---------------------------------------------------------
+# AHP tools (choose_ahp decides WHICH tool to run)
+#
+# handler  - dotted path to the Python function executed when
+#            the tool is selected
+# llm_tool - optional; name of an llm_tools schema. When
+#            present, the engine extracts the parameters from
+#            an LLM tool call (text is discarded) and passes
+#            them to the handler. Absent = no parameters.
+# ---------------------------------------------------------
+
+tools:
+  set:
+    description: >-
+      Sets the counter to the starting number required by the mandate.
+    handler: counter_tools.set_counter
+    llm_tool: set_tool
+  increase:
+    description: >-
+      Increases the counter by exactly 1.
+    handler: counter_tools.increase_counter
+  decrease:
+    description: >-
+      Decreases the counter by exactly 1.
+    handler: counter_tools.decrease_counter
+  exit:
+    description: >-
+      Choose this only when the mandate has already been completely
+      fulfilled by the current state of the data.
+    handler: counter_tools.stop
+  digest:
+    description: >-
+      Mandatory digest function.
+    handler: counter_tools.digest
+
+# ---------------------------------------------------------
+# Native LLM tools (generate_raw decides the PARAMETERS)
+#
+# Each entry becomes an OpenAI-style function schema.
+# If "required" is omitted, every declared parameter is
+# required.
+# ---------------------------------------------------------
+
+llm_tools:
+  set_tool:
+    description: >-
+      Sets the counter to the number required by the mandate.
+      Run this tool with the proper num parameter based on the
+      mandate and the current data.
+    parameters:
+      num:
+        type: integer
+        description: The number the counter must be set to.
+    required:
+      - num
+
+# ---------------------------------------------------------
+# AHP criterias
+# ---------------------------------------------------------
+
+criterias:
+  mandate_relevance: >-
+    How directly does using this tool contribute to fulfilling
+    the mandate stated in the data?
+  state_compatibility: >-
+    How appropriate is this tool for the current state of the data,
+    especially the current counter value and its relationship to
+    the numbers required by the mandate?
+  action_necessity: >-
+    How necessary is this tool right now? Prefer an action that
+    actually needs to be performed rather than an action that is
+    unnecessary in the current state.
+  completion_consistency: >-
+    How appropriate is this tool with respect to whether the mandate
+    is already fulfilled? If the mandate is fulfilled, exit should
+    be preferred; otherwise an action that advances fulfillment
+    should be preferred.
+
+# ---------------------------------------------------------
+# Engine settings
+#
+# max_iterations is a safety net: an exit-less agent (no stop
+# handler) still terminates here instead of running forever.
+# ---------------------------------------------------------
+
+settings:
+  loop_delay_seconds: 1
+  max_iterations: 50
