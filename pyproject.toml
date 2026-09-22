@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pseudoagent"
+version = "0.1.0"
+description = "A new AI agent paradigm!"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+  { name = "Fereydoun Farrahi Moghaddam" }
+]
+
+dependencies = ["frdfm-llm-tools", "frdfm-python-tools"]
+
+[project.urls]
+Homepage = "https://github.com/pseudoconscious/pseudoagent"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pseudoagent*"]
